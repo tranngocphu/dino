@@ -119,20 +119,28 @@ class VideoGenerator:
     def _generate_video_from_images(self, inp: str, out: str):
         img_array = []
         attention_images_list = sorted(glob.glob(os.path.join(inp, "attn-*.jpg")))
+        video_frames_list = sorted(glob.glob(os.path.join(self.args.input_path, "*.jpg")))
 
         # Get size of the first image
-        with open(attention_images_list[0], "rb") as f:
-            img = Image.open(f)
-            img = img.convert("RGB")
-            size = (img.width, img.height)
-            img_array.append(cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR))
+        with open(attention_images_list[0], "rb") as f0, open(video_frames_list[0], "rb") as f1:
+            img = Image.open(f0)
+            img = img.convert("RGB").resize(self.args.resize)
+            frame = Image.open(f1)        
+            frame = frame.convert("RGB").resize(self.args.resize)        
+            # combine video and attention
+            img = np.concatenate((frame, img), axis=1)            
+            img_array.append(cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR))            
+            # size = (img.width, img.height)  
+            size = (img.shape[1], img.shape[0])
+            print(f"Generating video {size} to {out}")
 
-        print(f"Generating video {size} to {out}")
-
-        for filename in tqdm(attention_images_list[1:]):
-            with open(filename, "rb") as f:
-                img = Image.open(f)
-                img = img.convert("RGB")
+        for att_filename, frame_filename in tqdm(zip(attention_images_list[1:], video_frames_list[1:])):
+            with open(att_filename, "rb") as f0, open(frame_filename, "rb") as f1:
+                img = Image.open(f0)
+                img = img.convert("RGB").resize(self.args.resize)
+                frame = Image.open(f1)            
+                frame = frame.convert("RGB").resize(self.args.resize)                                
+                img = np.concatenate((frame, img), axis=1)
                 img_array.append(cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR))
 
         out = cv2.VideoWriter(
@@ -373,6 +381,8 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
+    
+    print(args)
 
     vg = VideoGenerator(args)
     vg.run()
